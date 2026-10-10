@@ -50,3 +50,5 @@ jobs:
             git commit -m "Copy W1 application into independent repository"
             git push origin "HEAD:${TARGET_BRANCH}"
           fi
+
+# Independently maintained mirror workflow.
