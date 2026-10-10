@@ -49,6 +49,7 @@ insert into public.app_settings (id) values (1) on conflict (id) do nothing;
 create index if not exists reports_employee_date_idx on public.reports (employee_id, report_date desc);
 create index if not exists reports_department_date_idx on public.reports (department, report_date desc);
 create index if not exists profiles_department_role_idx on public.profiles (department, role);
+create index if not exists app_settings_updated_by_idx on public.app_settings (updated_by);
 
 create or replace function public.w1_current_role()
 returns text
