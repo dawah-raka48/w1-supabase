@@ -1,30 +1,31 @@
-# W1 Supabase PDF Migration (Preparation)
+# W1 Supabase: نقل التقارير دون حذف الأصل
 
-This folder adds a non-destructive migration path for the existing W1 weekly reports system.
+هذا المجلد يجهّز النسخة المستقلة على Supabase. **لم يتم نقل أي ملف فعليًا حتى الآن**، وملفات Google Drive وGoogle Sheets ما زالت المصدر الأصلي.
 
-## Important
-- The current GitHub Pages application and its Google Apps Script API remain unchanged.
-- The source Google Sheet is read-only for this migration script.
-- Original PDFs remain in Google Drive.
-- Files are copied to a private Supabase Storage bucket; they are not moved or deleted.
-- A mapping/status row is saved in public.report_file_migrations for each source spreadsheet row.
-- Do not expose SUPABASE_SERVICE_ROLE_KEY in GitHub Pages or any client-side JavaScript.
+## الملفات
 
-## Files
-- supabase/migration.sql: creates the private bucket and migration mapping table.
-- supabase/google-apps-script/W1PdfMigration.gs: migration runner for Apps Script.
+- `migration.sql`: ينشئ Storage bucket خاصًا باسم `weekly-reports-pdf` وجدول متابعة لكل صف يتم فحصه أو نقله.
+- `app-schema.sql`: ينشئ الجداول المبدئية `profiles` و`reports` و`app_settings` وسياسات RLS.
+- `google-apps-script/W1PdfMigration.gs`: سكربت نسخ PDF إلى Supabase مع تسجيل الحالة، دون تعديل جدول المصدر أو حذف الملفات.
 
-## Runbook
-1. Create or select the Supabase project intended for W1.
-2. Run supabase/migration.sql in Supabase SQL Editor.
-3. Create a standalone Google Apps Script project under an account with access to the source Google Sheet and all linked Drive files. Paste the .gs contents.
-4. Set Script Properties: SPREADSHEET_ID, SHEET_NAME, SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY. Optional: SUPABASE_BUCKET (defaults to weekly-reports-pdf).
-5. Run previewW1PdfMigration(). Check logs for detected columns and count of recognized Drive links.
-6. If the PDF column is not detected, edit HEADER_ALIASES.pdf to include the exact existing column heading. Repeat preview.
-7. Run migrateW1PdfBatch() repeatedly. Each execution handles up to 10 linked rows and can be safely retried. Review Apps Script execution logs and report_file_migrations.
-8. Before app cutover, verify migrated count, compare files, and add the app's authenticated read policy for the private bucket based on the actual roles/department model. The current application is not switched to Supabase by these files.
+## الترتيب
 
-## Not automatic yet
-- Supabase project URL/keys and exact Google Sheet/tab/column names have not been configured in this repository.
-- The runner creates a migration map rather than guessing the production reports table schema.
-- No source data is deleted or modified. Production pages should be switched only in a separate tested change after migration verification.
+1. في مشروع Supabase المستهدف، افتح **SQL Editor** وشغّل `migration.sql`.
+2. شغّل `app-schema.sql` بعده. هذه ملفات إنشاء/سياسات إضافية؛ لا تحذف بيانات من جداول قائمة.
+3. افتح [Google Apps Script](https://script.google.com/home/start)، وأنشئ مشروعًا مستقلًا والصق محتوى `W1PdfMigration.gs`.
+4. من **Project Settings → Script Properties** أضف `SUPABASE_SERVICE_ROLE_KEY` بقيمة مفتاح الخدمة السري. لا تضعه في GitHub أو في أي ملف JavaScript بالمتصفح.
+5. معرف جدول Google Sheets ورابط Supabase محددان افتراضيًا في السكربت. يمكن تحديد `SHEET_NAME` اختياريًا؛ إذا تركته فارغًا يحاول السكربت اختيار التبويب الذي يحتوي على عمود رابط PDF معروف.
+6. شغّل `previewW1PdfMigration()` أولًا وراجع سجل التنفيذ: اسم التبويب، الأعمدة المكتشفة، عدد الروابط الصحيحة وغير الصحيحة.
+7. يبدأ `migrateW1PdfBatch()` بثلاثة صفوف مرتبطة كحد أقصى لكل تشغيل. افحص سجل `report_file_migrations` والملفات في Storage بعد الاختبار قبل متابعة النقل.
+
+## اكتشاف الروابط
+
+يحاول السكربت قراءة الرابط من الخلية نفسها، أو من رابط النص المنسّق، أو من صيغة `HYPERLINK`، لأن الخلايا قد تعرض نصًا مثل «عرض التقرير» بدلًا من عنوان URL. إذا كان اسم عمود الرابط مختلفًا، أضف عنوانه إلى `HEADER_ALIASES.pdf` ثم أعد المعاينة.
+
+## حدود مهمة قبل التشغيل
+
+- يجب أن يمتلك حساب Google الذي يشغّل Apps Script صلاحية قراءة الجدول والملفات المرتبطة به في Drive.
+- يجب تشغيل SQL وإعداد مفتاح الخدمة السري في Script Properties؛ لا يمكن إتمام النقل الفعلي دون هاتين الصلاحيتين.
+- لا يغيّر السكربت Google Sheets، ولا يحذف أو ينقل ملفات Google Drive، ويستخدم `upsert` كي يمكن إعادة المحاولة بأمان.
+- ملفات PDF المنقولة تظل داخل حاوية خاصة. لا تجعل الحاوية عامة؛ يجب ربط فتح التقارير بملفات المستخدم والقسم بعد استكمال نقل حسابات المستخدمين.
+- هذا السكربت ينقل ملفات PDF ويكتب سجل ربط بها؛ **لا ينقل الحسابات ولا يحوّل تسجيل الدخول أو الواجهة إلى Supabase تلقائيًا**. يظل تفعيل التطبيق مؤجلًا حتى بناء الربط الآمن والتحقق من مطابقة البيانات.
