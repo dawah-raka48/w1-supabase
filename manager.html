@@ -24,7 +24,7 @@
 <main id="content"></main>
 <div class="pdf-modal" id="pdfModal" aria-hidden="true"><div class="pdf-modal-card"><div class="pdf-modal-header"><div><strong id="pdfModalTitle">عرض التقرير</strong><span>التقرير الأسبوعي</span></div><button type="button" class="pdf-close" id="pdfClose" aria-label="إغلاق"><i class="fa-solid fa-xmark"></i></button></div><iframe id="pdfFrame" title="عرض التقرير" src="about:blank"></iframe></div></div>
 </div>
-<script src="js/config.js"></script><script src="js/api.js?v=2"></script><script src="js/manager.js"></script><script src="js/logout-modal.js?v=2"></script><script src="js/theme.js?v=1"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script src="js/config.js"></script><script>window.supabaseClient = window.supabase.createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_PUBLISHABLE_KEY);</script><script src="js/api.js?v=2"></script><script src="js/manager.js"></script><script src="js/logout-modal.js?v=2"></script><script src="js/theme.js?v=1"></script>
 <script>
 document.getElementById('refreshBtn')?.addEventListener('click',async function(){
     if(this.disabled)return;
