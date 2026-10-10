@@ -25,7 +25,7 @@ async function api(action, data = {}) {
   }
   if (action === "saveSettings") {
    const d=Number(data.uploadDay),s=String(data.startTime||""),e=String(data.endTime||"");
-   if(!Number.isInteger(d)||d<0||d>6||!/^([01]\\d|2[0-3]):[0-5]\\d$/.test(s)||!/^([01]\\d|2[0-3]):[0-5]\\d$/.test(e)||s>e)return {success:false,message:"تحقق من يوم الرفع ووقت البداية والنهاية."};
+   if(!Number.isInteger(d)||d<0||d>6||!/^([01]\d|2[0-3]):[0-5]\d$/.test(s)||!/^([01]\d|2[0-3]):[0-5]\d$/.test(e)||s>e)return {success:false,message:"تحقق من يوم الرفع ووقت البداية والنهاية."};
    const {data:saved,error}=await client.from("app_settings").update({upload_day:d,start_time:s,end_time:e,updated_by:session.user.id}).eq("id",1).select("id").maybeSingle();if(error)throw error;if(!saved)return {success:false,message:"لم يتم حفظ الإعدادات. تأكد من صلاحية المدير العام."};invalidateApiCache();return {success:true,message:"تم حفظ موعد رفع التقارير بنجاح."};
   }
   if (action === "addEmployee") {
@@ -41,7 +41,7 @@ async function api(action, data = {}) {
    const sr=await api("getSettings");if(!sr.success)return sr;const st=sr.settings||{},now=new Date(),time=now.toTimeString().slice(0,5);if(now.getDay()!==Number(st.uploadDay)||time<String(st.startTime)||time>String(st.endTime))return {success:false,message:"رفع التقارير مغلق الآن. عدّل موعد الرفع من لوحة المدير العام ثم حدّث صفحة الموظف."};
    const name=String(data.fileName||"report.pdf"),mime=String(data.mimeType||"application/pdf"),b64=String(data.fileData||"");if(!name.toLowerCase().endsWith(".pdf")||(mime&&mime!=="application/pdf"))return {success:false,message:"يسمح فقط بملفات PDF."};if(!b64)return {success:false,message:"الملف فارغ أو لم تتم قراءته."};if(b64.length>22000000)return {success:false,message:"حجم الملف كبير. الحد الأقصى 15 ميجابايت."};
    const start=new Date(now);start.setDate(start.getDate()-((start.getDay()+6)%7));start.setHours(0,0,0,0);const wk=start.getFullYear()+"-"+String(start.getMonth()+1).padStart(2,"0")+"-"+String(start.getDate()).padStart(2,"0");const end=new Date(start);end.setDate(end.getDate()+6);const wkEnd=end.getFullYear()+"-"+String(end.getMonth()+1).padStart(2,"0")+"-"+String(end.getDate()).padStart(2,"0");
-   const safe=name.replace(/[^\\w.\\-\\u0600-\\u06FF]/g,"_").slice(-120),path=p.id+"/"+wk+"/"+Date.now()+"_"+safe,binary=atob(b64),bytes=new Uint8Array(binary.length);for(let i=0;i<binary.length;i++)bytes[i]=binary.charCodeAt(i);
+   const safe=name.replace(/[^\w.\-\u0600-\u06FF]/g,"_").slice(-120),path=p.id+"/"+wk+"/"+Date.now()+"_"+safe,binary=atob(b64),bytes=new Uint8Array(binary.length);for(let i=0;i<binary.length;i++)bytes[i]=binary.charCodeAt(i);
    const {error:ue}=await client.storage.from("weekly-reports-pdf").upload(path,new Blob([bytes],{type:"application/pdf"}),{contentType:"application/pdf",upsert:false});if(ue)throw ue;
    const {error:ie}=await client.from("reports").insert({employee_id:p.id,employee_name:p.full_name,department:p.department,report_date:now.toISOString().slice(0,10),report_week_start:wk,report_week_end:wkEnd,title:"التقرير الأسبوعي",original_filename:name,file_path:path});
    if(ie){await client.storage.from("weekly-reports-pdf").remove([path]);if(ie.code==="23505")return {success:false,message:"تم رفع تقرير لهذا الأسبوع بالفعل."};throw ie;}invalidateApiCache();return {success:true,message:"تم رفع التقرير بنجاح."};
