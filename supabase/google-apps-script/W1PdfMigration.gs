@@ -12,6 +12,8 @@
  */
 const W1_MIGRATION = {
   DEFAULT_BUCKET: 'weekly-reports-pdf',
+  DEFAULT_SPREADSHEET_ID: '1e9H9DxO5qA0Cbj3C3LDpv-PsYS1oue8FDkjOpoYHn-Y',
+  DEFAULT_SUPABASE_URL: 'https://ekkoauwuumknjcpllrau.supabase.co',
   BATCH_SIZE: 10,
   TABLE: 'report_file_migrations',
   HEADER_ALIASES: {
@@ -19,47 +21,47 @@ const W1_MIGRATION = {
     employee: ['employee', 'employee_name', 'اسم الموظف', 'الموظف', 'اسم مقدم التقرير', 'اسم المستخدم'],
     department: ['department', 'department_name', 'القسم', 'اسم القسم'],
     date: ['date', 'report_date', 'التاريخ', 'تاريخ التقرير', 'تاريخ الرفع'],
-    pdf: ['pdf', 'pdf_url', 'file_url', 'رابط pdf', 'رابط الملف', 'رابط التقرير', 'الملف', 'رابط ملف التقرير']
+    pdf: ['pdf', 'pdf_url', 'file_url', 'file', 'report_pdf', 'pdf link', 'attachment', 'رابط pdf', 'رابط الملف', 'رابط التقرير', 'الملف', 'رابط ملف التقرير', 'ملف pdf', 'رابط المرفق', 'المرفق']
   }
 };
 
 function w1MigrationProps_() {
   const p = PropertiesService.getScriptProperties();
   const cfg = {
-    spreadsheetId: p.getProperty('SPREADSHEET_ID'),
-    sheetName: p.getProperty('SHEET_NAME'),
-    supabaseUrl: (p.getProperty('SUPABASE_URL') || '').replace(/\/$/, ''),
+    spreadsheetId: p.getProperty('SPREADSHEET_ID') || W1_MIGRATION.DEFAULT_SPREADSHEET_ID,
+    sheetName: p.getProperty('SHEET_NAME') || '',
+    supabaseUrl: (p.getProperty('SUPABASE_URL') || W1_MIGRATION.DEFAULT_SUPABASE_URL).replace(/\/$/, ''),
     serviceKey: p.getProperty('SUPABASE_SERVICE_ROLE_KEY'),
     bucket: p.getProperty('SUPABASE_BUCKET') || W1_MIGRATION.DEFAULT_BUCKET
   };
-  const names = {
-    spreadsheetId: 'SPREADSHEET_ID', sheetName: 'SHEET_NAME',
-    supabaseUrl: 'SUPABASE_URL', serviceKey: 'SUPABASE_SERVICE_ROLE_KEY'
-  };
-  Object.keys(names).forEach(k => { if (!cfg[k]) throw new Error('Missing Script Property: ' + names[k]); });
+  if (!cfg.spreadsheetId) throw new Error('Missing source spreadsheet ID.');
+  if (!cfg.supabaseUrl) throw new Error('Missing SUPABASE_URL.');
+  if (!cfg.serviceKey) throw new Error('Missing Script Property: SUPABASE_SERVICE_ROLE_KEY');
   return cfg;
 }
 
 function previewW1PdfMigration() {
   const cfg = w1MigrationProps_();
-  const sheet = SpreadsheetApp.openById(cfg.spreadsheetId).getSheetByName(cfg.sheetName);
-  if (!sheet) throw new Error('Sheet not found: ' + cfg.sheetName);
-  const values = sheet.getDataRange().getDisplayValues();
-  if (values.length < 2) { Logger.log('No data rows found.'); return; }
-  const map = w1MapHeaders_(values[0]);
+  const source = w1LoadSource_(cfg);
+  cfg.sheetName = source.sheet.getName();
+  const values = source.values;
+  const map = source.map;
+  if (values.length < 2) { Logger.log('No data rows found in ' + cfg.sheetName); return; }
   Logger.log('Detected columns: ' + JSON.stringify(map));
   if (map.pdf < 0) throw new Error('Could not detect PDF URL column. Add its exact header to HEADER_ALIASES.pdf.');
+
   let withLinks = 0, withoutLinks = 0, invalidLinks = 0;
   for (let i = 1; i < values.length; i++) {
-    const url = String(values[i][map.pdf] || '').trim();
+    const url = w1PdfCellValue_(source, i);
     if (!url) { withoutLinks++; continue; }
     if (!w1DriveId_(url)) { invalidLinks++; continue; }
     withLinks++;
   }
   Logger.log(JSON.stringify({
-    sheet: cfg.sheetName, rows: values.length - 1, rowsWithDriveLinks: withLinks,
-    rowsWithoutLinks: withoutLinks, rowsWithUnrecognizedLinks: invalidLinks,
-    bucket: cfg.bucket, sourceWillBeModified: false, driveFilesWillBeDeleted: false
+    spreadsheetId: cfg.spreadsheetId, sheet: cfg.sheetName, rows: values.length - 1,
+    rowsWithDriveLinks: withLinks, rowsWithoutLinks: withoutLinks,
+    rowsWithUnrecognizedLinks: invalidLinks, bucket: cfg.bucket,
+    sourceWillBeModified: false, driveFilesWillBeDeleted: false
   }, null, 2));
 }
 
@@ -68,16 +70,16 @@ function migrateW1PdfBatch() {
   if (!lock.tryLock(5000)) throw new Error('Another migration batch is running.');
   try {
     const cfg = w1MigrationProps_();
-    const sheet = SpreadsheetApp.openById(cfg.spreadsheetId).getSheetByName(cfg.sheetName);
-    if (!sheet) throw new Error('Sheet not found: ' + cfg.sheetName);
-    const values = sheet.getDataRange().getDisplayValues();
-    if (values.length < 2) return { processed: 0, message: 'No data rows.' };
-    const map = w1MapHeaders_(values[0]);
+    const source = w1LoadSource_(cfg);
+    cfg.sheetName = source.sheet.getName();
+    const values = source.values;
+    const map = source.map;
+    if (values.length < 2) return { processed: 0, message: 'No data rows in ' + cfg.sheetName };
     if (map.pdf < 0) throw new Error('PDF URL column not found. Run preview and configure HEADER_ALIASES.');
     let processed = 0, migrated = 0, skipped = 0, errors = 0;
     for (let i = 1; i < values.length && processed < W1_MIGRATION.BATCH_SIZE; i++) {
       const row = values[i];
-      const url = String(row[map.pdf] || '').trim();
+      const url = w1PdfCellValue_(source, i);
       if (!url) continue;
       const rowNumber = i + 1;
       const driveId = w1DriveId_(url);
@@ -132,15 +134,65 @@ function migrateW1PdfBatch() {
   }
 }
 
-function w1MapHeaders_(headers) {
-  const norm = headers.map(h => String(h || '').trim().toLowerCase().replace(/[\s_\-]+/g, ' '));
-  const result = {};
-  Object.keys(W1_MIGRATION.HEADER_ALIASES).forEach(key => {
-    const aliases = W1_MIGRATION.HEADER_ALIASES[key].map(a => a.toLowerCase().replace(/[\s_\-]+/g, ' '));
-    result[key] = norm.findIndex(h => aliases.indexOf(h) >= 0);
-  });
-  return result;
+function w1LoadSource_(cfg) {
+  const spreadsheet = SpreadsheetApp.openById(cfg.spreadsheetId);
+  if (cfg.sheetName) {
+    const sheet = spreadsheet.getSheetByName(cfg.sheetName);
+    if (!sheet) throw new Error('Sheet not found: ' + cfg.sheetName);
+    return w1ReadSourceSheet_(sheet);
+  }
+
+  const candidates = spreadsheet.getSheets().map(sheet => w1ReadSourceSheet_(sheet));
+  const valid = candidates.filter(source => source.map.pdf >= 0 && source.values.length > 1);
+  if (!valid.length) {
+    throw new Error('Could not find a tab with a recognized PDF/link column. Set SHEET_NAME or add its header to HEADER_ALIASES.pdf.');
+  }
+  valid.sort((a, b) => b.driveLinkCount - a.driveLinkCount);
+  return valid[0];
 }
+
+function w1ReadSourceSheet_(sheet) {
+  const range = sheet.getDataRange();
+  const values = range.getDisplayValues();
+  const source = {
+    sheet: sheet,
+    values: values,
+    formulas: range.getFormulas(),
+    richText: range.getRichTextValues(),
+    map: w1MapHeaders_(values.length ? values[0] : []),
+    driveLinkCount: 0
+  };
+  if (source.map.pdf >= 0) {
+    for (let i = 1; i < values.length; i++) {
+      if (w1DriveId_(w1PdfCellValue_(source, i))) source.driveLinkCount++;
+    }
+  }
+  return source;
+}
+
+function w1PdfCellValue_(source, rowIndex) {
+  const col = source.map.pdf;
+  if (col < 0) return '';
+  const rich = source.richText[rowIndex] && source.richText[rowIndex][col];
+  if (rich && typeof rich.getLinkUrl === 'function') {
+    const directUrl = rich.getLinkUrl();
+    if (directUrl) return String(directUrl).trim();
+    if (typeof rich.getRuns === 'function') {
+      const runs = rich.getRuns();
+      for (let i = 0; i < runs.length; i++) {
+        const runUrl = runs[i].getLinkUrl && runs[i].getLinkUrl();
+        if (runUrl) return String(runUrl).trim();
+      }
+    }
+  }
+  const formula = source.formulas[rowIndex] && source.formulas[rowIndex][col];
+  const match = String(formula || '').match(/HYPERLINK\s*\(\s*"([^"]+)"/i);
+  if (match) return match[1].trim();
+  return String(source.values[rowIndex][col] || '').trim();
+}
+
+function w1MapHeaders_(headers)
+
 function w1Value_(row, index) { return index >= 0 ? String(row[index] || '').trim() : ''; }
 
 function w1DriveId_(url) {
