@@ -1,6 +1,4 @@
-/* Supabase-backed read API for the independent 2027 system.
-   Writes remain disabled until the upload/storage and admin-user flows are secured. */
-const apiInFlight = new Map();
+/* Supabase-backed API for the independent 2027 weekly reports system. */
 let apiSettingsCache = null;
 let apiSettingsCacheAt = 0;
 const API_SETTINGS_TTL = 30000;
@@ -48,13 +46,33 @@ async function api(action, data = {}) {
             apiSettingsCache = result; apiSettingsCacheAt = Date.now();
             return result;
         }
-        if (["addEmployee","updateEmployee","deleteEmployee","deleteReport","saveSettings","uploadReport"].includes(action)) {
+        if (action === "addEmployee") {
+            const { data: created, error } = await client.functions.invoke("admin-create-employee", {
+                body: {
+                    name: String(data.name || "").trim(),
+                    username: String(data.username || "").trim().toLowerCase(),
+                    password: String(data.password || ""),
+                    department: String(data.department || "").trim(),
+                    role: String(data.role || "employee")
+                }
+            });
+            if (error) {
+                let message = error.message || "تعذر إضافة الموظف.";
+                try {
+                    const details = await error.context?.json?.();
+                    if (details?.message) message = details.message;
+                } catch (_) {}
+                return { success: false, message };
+            }
+            return created || { success: false, message: "لم يصل تأكيد إنشاء الموظف." };
+        }
+        if (["updateEmployee","deleteEmployee","deleteReport","saveSettings","uploadReport"].includes(action)) {
             return { success: false, message: "هذا الإجراء غير مفعّل بعد في النسخة الجديدة حفاظًا على أمان الحسابات والملفات." };
         }
         return { success: false, message: "الإجراء غير معروف في النسخة الجديدة." };
     } catch (error) {
         console.error("Supabase API error:", action, error);
-        return { success: false, message: error.message || "تعذر جلب البيانات من Supabase." };
+        return { success: false, message: error.message || "تعذر تنفيذ الطلب في Supabase." };
     }
 }
 
