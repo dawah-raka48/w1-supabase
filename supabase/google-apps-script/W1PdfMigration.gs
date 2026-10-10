@@ -191,7 +191,15 @@ function w1PdfCellValue_(source, rowIndex) {
   return String(source.values[rowIndex][col] || '').trim();
 }
 
-function w1MapHeaders_(headers)
+function w1MapHeaders_(headers) {
+  const norm = headers.map(h => String(h || '').trim().toLowerCase().replace(/[\\s_\\-]+/g, ' '));
+  const result = {};
+  Object.keys(W1_MIGRATION.HEADER_ALIASES).forEach(key => {
+    const aliases = W1_MIGRATION.HEADER_ALIASES[key].map(a => a.toLowerCase().replace(/[\\s_\\-]+/g, ' '));
+    result[key] = norm.findIndex(h => aliases.indexOf(h) >= 0);
+  });
+  return result;
+}
 
 function w1Value_(row, index) { return index >= 0 ? String(row[index] || '').trim() : ''; }
 
