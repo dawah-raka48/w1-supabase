@@ -1,9 +1,9 @@
 /**
  * W1 -> Supabase Storage PDF migration (non-destructive).
  *
- * Setup Script Properties:
- * SPREADSHEET_ID, SHEET_NAME, SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
- * Optional: SUPABASE_BUCKET (defaults to weekly-reports-pdf)
+ * Required Script Property: SUPABASE_SERVICE_ROLE_KEY
+ * Optional Script Properties: SPREADSHEET_ID, SHEET_NAME, SUPABASE_URL, SUPABASE_BUCKET
+ * The provided spreadsheet ID and project URL are built in as defaults.
  *
  * Run previewW1PdfMigration() first, then migrateW1PdfBatch() repeatedly.
  * Each batch processes at most 10 linked rows.
@@ -14,7 +14,7 @@ const W1_MIGRATION = {
   DEFAULT_BUCKET: 'weekly-reports-pdf',
   DEFAULT_SPREADSHEET_ID: '1e9H9DxO5qA0Cbj3C3LDpv-PsYS1oue8FDkjOpoYHn-Y',
   DEFAULT_SUPABASE_URL: 'https://ekkoauwuumknjcpllrau.supabase.co',
-  BATCH_SIZE: 10,
+  BATCH_SIZE: 3,
   TABLE: 'report_file_migrations',
   HEADER_ALIASES: {
     reportId: ['report_id', 'report id', 'رقم التقرير', 'معرف التقرير', 'كود التقرير', 'id'],
