@@ -37,7 +37,7 @@ jobs:
       - name: Commit copy to this repository only
         shell: bash
         env:
-          TARGET_BRANCH: ${GITHUB_REF_NAME}
+          TARGET_BRANCH: ${{ github.ref_name }}
         run: |
           set -euo pipefail
           cd destination
