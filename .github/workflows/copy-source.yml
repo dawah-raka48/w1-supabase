@@ -1,0 +1,52 @@
+name: Copy W1 into independent repository
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/copy-source.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  copy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout original application (read-only)
+        uses: actions/checkout@v4
+        with:
+          repository: dawah-raka48/w1
+          ref: main
+          path: source
+          persist-credentials: false
+
+      - name: Checkout this independent repository
+        uses: actions/checkout@v4
+        with:
+          path: destination
+          persist-credentials: true
+
+      - name: Copy original application files
+        shell: bash
+        run: |
+          set -euo pipefail
+          rsync -a --delete --exclude='.git' --exclude='.github' source/ destination/
+
+      - name: Commit copy to this repository only
+        shell: bash
+        env:
+          TARGET_BRANCH: ${GITHUB_REF_NAME}
+        run: |
+          set -euo pipefail
+          cd destination
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "No changes to copy."
+          else
+            git commit -m "Copy W1 application into independent repository"
+            git push origin "HEAD:${TARGET_BRANCH}"
+          fi
