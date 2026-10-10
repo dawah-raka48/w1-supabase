@@ -20,11 +20,9 @@
    const startTime=document.getElementById("startTime")?.value||"";
    const endTime=document.getElementById("endTime")?.value||"";
    if(!Number.isInteger(uploadDay)||uploadDay<0||uploadDay>6||!startTime||!endTime||startTime>endTime)throw new Error("اختر يوم الرفع وحدد وقت بداية ونهاية صحيحين.");
-   const {data:saved,error}=await client.from("app_settings").update({
-    upload_day:uploadDay,start_time:startTime,end_time:endTime,updated_by:session.user.id
-   }).eq("id",1).select("id").maybeSingle();
-   if(error)throw error;
-   if(!saved)throw new Error("لم تُحفظ الإعدادات. تحقق من صلاحيات المدير العام.");
+   const {data:result,error}=await client.functions.invoke("admin-save-settings",{body:{uploadDay,startTime,endTime}});
+   if(error){let message=error.message||"تعذر حفظ الإعدادات.";try{const details=await error.context?.json?.();if(details?.message)message=details.message;}catch(_){}throw new Error(message);}
+   if(!result?.success)throw new Error(result?.message||"تعذر حفظ الإعدادات.");
    if(typeof invalidateApiCache==="function")invalidateApiCache();
    alert("تم حفظ موعد رفع التقارير بنجاح.");
   }catch(error){console.error("Save settings failed:",error);alert(error.message||"تعذر حفظ الإعدادات.");}
