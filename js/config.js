@@ -1,20 +1,11 @@
-/* ==========================================
-   Weekly Reports System
-   Configuration
-========================================== */
-
+/* Independent W1 Supabase copy configuration.
+   This copy is intentionally disconnected from the original Google Apps Script API
+   until the Supabase schema, account mapping, and PDF migration are verified. */
 const CONFIG = {
-
-    API_URL:
-        "https://script.google.com/macros/s/AKfycbzqQxil7vGyEkuoLBn41f8OjzCzdqInbQn3ZyqWMi27GeFlaJ8hGF14a4s8anZQcVd0/exec",
-
-    DRIVE_FOLDER_ID:
-        "1mj2oW5oJrtBhV9eA_7Dh08jjB62dFxhA",
-
-    APP_NAME:
-        "نظام التقارير الأسبوعية",
-
-    VERSION:
-        "1.0.0"
-
+    API_URL: "",
+    SUPABASE_URL: "https://ekkoauwuumknjcpllrau.supabase.co",
+    DRIVE_FOLDER_ID: "1mj2oW5oJrtBhV9eA_7Dh08jjB62dFxhA",
+    APP_NAME: "نظام التقارير الأسبوعية — نسخة مستقلة",
+    VERSION: "1.0.0-supabase-staging",
+    BACKEND_MODE: "supabase-migration-pending"
 };
