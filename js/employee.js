@@ -556,20 +556,26 @@ async function checkUploadPermission() {
 
     }
 
-    const now = new Date();
+    // Use Saudi Arabia time regardless of the employee device timezone.
+    const riyadhParts = new Intl.DateTimeFormat("en-GB", {
+        timeZone: "Asia/Riyadh",
+        weekday: "short",
+        hour: "2-digit",
+        minute: "2-digit",
+        hourCycle: "h23"
+    }).formatToParts(new Date());
 
-    const todayName =
-        String(now.getDay());
+    const riyadhValues = Object.fromEntries(
+        riyadhParts.map(part => [part.type, part.value])
+    );
 
-    const currentTime =
+    const dayIndex = {
+        Sun: "0", Mon: "1", Tue: "2", Wed: "3",
+        Thu: "4", Fri: "5", Sat: "6"
+    };
 
-        String(now.getHours())
-            .padStart(2, "0") +
-
-        ":" +
-
-        String(now.getMinutes())
-            .padStart(2, "0");
+    const todayName = dayIndex[riyadhValues.weekday];
+    const currentTime = `${riyadhValues.hour}:${riyadhValues.minute}`;
 
     const start =
         String(settings.startTime)
