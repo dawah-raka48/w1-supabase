@@ -1,4 +1,4 @@
-const CACHE_NAME = 'weekly-reports-v15';
+const CACHE_NAME = 'weekly-reports-v16';
 const APP_SHELL = [
   './','./index.html','./employee.html','./admin.html','./manager.html',
   './css/variables.css','./css/theme.css','./css/animations.css','./css/login.css','./css/login-modern.css','./css/employee.css','./css/employee-modern.css','./css/employee-v4.css','./css/employee-dashboard.css','./css/employee-layout-fix.css','./css/dialogs.css','./css/employee-pdf-modal.css','./css/logout-modal.css','./css/pwa.css',
