@@ -48,7 +48,16 @@
     window.openEmployeePdf = openPdf;
     window.closeEmployeePdf = closePdf;
 
-    // loadReports() creates these links dynamically, so use event delegation.
+    // Let the browser's native PDF viewer open the authenticated Blob URL.
+    document.addEventListener("click", function (event) {
+        const link = event.target.closest(".report-item .view-btn, .reports-list .view-btn");
+        if (!link) return;
+        const url = link.getAttribute("href") || "";
+        if (!url.startsWith("blob:")) return;
+        event.preventDefault();
+        window.open(url, "_blank", "noopener");
+    }, true);
+
     document.addEventListener("click", function (event) {
         const button = event.target.closest(".reports-list .view-btn");
         if (!button) return;
