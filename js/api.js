@@ -30,7 +30,7 @@ async function api(action, data = {}) {
   }
   if (action === "addEmployee") {
    const {data:created,error}=await client.functions.invoke("admin-create-employee",{body:{name:String(data.name||"").trim(),username:String(data.username||"").trim().toLowerCase(),password:String(data.password||""),department:String(data.department||"").trim(),role:String(data.role||"employee")}});
-   if(error){let message=error.message||"تعذر إضافة الموظف.";try{const d=await error.context?.json?.();if(d?.message)message=d.message;}catch(_){}return {success:false,message};}return created||{success:false,message:"لم يصل تأكيد إنشاء الموظف."};
+   if(error){let message=error.message||"تعذر إضافة الموظف.";try{const d=await error.context?.json?.();if(d?.details)message=d.details;else if(d?.message)message=d.message;}catch(_){}return {success:false,message};}return created||{success:false,message:"لم يصل تأكيد إنشاء الموظف."};
   }
   if (action === "checkWeeklyReport") {
    const id=data.employeeId||session.user.id,now=new Date(),start=new Date(now);start.setDate(start.getDate()-((start.getDay()+6)%7));start.setHours(0,0,0,0);const wk=start.getFullYear()+"-"+String(start.getMonth()+1).padStart(2,"0")+"-"+String(start.getDate()).padStart(2,"0");
