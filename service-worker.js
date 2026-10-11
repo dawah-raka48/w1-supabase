@@ -1,8 +1,8 @@
-const CACHE_NAME = 'weekly-reports-v18';
+const CACHE_NAME = 'weekly-reports-v19';
 const APP_SHELL = [
   './','./index.html','./employee.html','./admin.html','./manager.html',
   './css/variables.css','./css/theme.css','./css/animations.css','./css/login.css','./css/login-modern.css','./css/employee.css','./css/employee-modern.css','./css/employee-v4.css','./css/employee-dashboard.css','./css/employee-layout-fix.css','./css/dialogs.css','./css/employee-pdf-modal.css','./css/logout-modal.css','./css/pwa.css',
-  './js/config.js','./js/storage.js','./js/api.js','./js/auth.js','./js/employee.js','./js/employee-pdf-viewer.js','./js/employee-dashboard.js','./js/dialogs.js','./js/logout-modal.js','./js/pwa.js',
+  './js/config.js','./js/storage.js','./js/api.js','./js/auth.js','./js/employee.js','./js/employee-pdf-viewer.js','./js/employee-pdf-viewer-v3.js','./js/employee-dashboard.js','./js/dialogs.js','./js/logout-modal.js','./js/pwa.js',
   './assets/logo.png','./assets/login-bg.svg','./manifest.webmanifest'
 ];
 self.addEventListener('install',event=>{event.waitUntil(caches.open(CACHE_NAME).then(cache=>cache.addAll(APP_SHELL)).then(()=>self.skipWaiting()))});
