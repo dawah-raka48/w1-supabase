@@ -37,14 +37,14 @@ async function api(action, data = {}) {
    const {data:row,error}=await client.from("reports").select("id").eq("employee_id",id).eq("report_week_start",wk).maybeSingle();if(error)throw error;return {success:true,uploaded:!!row};
   }
   if (action === "uploadReport") {
-   const {data:p,error:pe}=await client.from("profiles").select("id,full_name,department,role,is_active").eq("id",session.user.id).maybeSingle();if(pe)throw pe;if(!p||p.role!=="employee"||!p.is_active)return {success:false,message:"رفع التقارير متاح للموظف النشط فقط."};
-   const sr=await api("getSettings");if(!sr.success)return sr;const st=sr.settings||{},now=new Date(),time=now.toTimeString().slice(0,5);if(now.getDay()!==Number(st.uploadDay)||time<String(st.startTime)||time>String(st.endTime))return {success:false,message:"رفع التقارير مغلق الآن. عدّل موعد الرفع من لوحة المدير العام ثم حدّث صفحة الموظف."};
-   const name=String(data.fileName||"report.pdf"),mime=String(data.mimeType||"application/pdf"),b64=String(data.fileData||"");if(!name.toLowerCase().endsWith(".pdf")||(mime&&mime!=="application/pdf"))return {success:false,message:"يسمح فقط بملفات PDF."};if(!b64)return {success:false,message:"الملف فارغ أو لم تتم قراءته."};if(b64.length>22000000)return {success:false,message:"حجم الملف كبير. الحد الأقصى 15 ميجابايت."};
-   const start=new Date(now);start.setDate(start.getDate()-((start.getDay()+6)%7));start.setHours(0,0,0,0);const wk=start.getFullYear()+"-"+String(start.getMonth()+1).padStart(2,"0")+"-"+String(start.getDate()).padStart(2,"0");const end=new Date(start);end.setDate(end.getDate()+6);const wkEnd=end.getFullYear()+"-"+String(end.getMonth()+1).padStart(2,"0")+"-"+String(end.getDate()).padStart(2,"0");
-   const path=p.id+"/"+wk+"/"+Date.now()+".pdf",binary=atob(b64),bytes=new Uint8Array(binary.length);for(let i=0;i<binary.length;i++)bytes[i]=binary.charCodeAt(i);
-   const {error:ue}=await client.storage.from("weekly-reports-pdf").upload(path,new Blob([bytes],{type:"application/pdf"}),{contentType:"application/pdf",upsert:false});if(ue)throw ue;
-   const {error:ie}=await client.from("reports").insert({employee_id:p.id,employee_name:p.full_name,department:p.department,report_date:now.toISOString().slice(0,10),report_week_start:wk,report_week_end:wkEnd,title:"التقرير الأسبوعي",original_filename:name,file_path:path});
-   if(ie){await client.storage.from("weekly-reports-pdf").remove([path]);if(ie.code==="23505")return {success:false,message:"تم رفع تقرير لهذا الأسبوع بالفعل."};throw ie;}invalidateApiCache();return {success:true,message:"تم رفع التقرير بنجاح."};
+   const name=String(data.fileName||"report.pdf"),mime=String(data.mimeType||"application/pdf"),b64=String(data.fileData||"");
+   if(!name.toLowerCase().endsWith(".pdf")||(mime&&mime!=="application/pdf"))return {success:false,message:"يسمح فقط بملفات PDF."};
+   if(!b64)return {success:false,message:"الملف فارغ أو لم تتم قراءته."};
+   if(b64.length>22000000)return {success:false,message:"حجم الملف كبير. الحد الأقصى 15 ميجابايت."};
+   const {data:result,error}=await client.functions.invoke("upload-report-to-drive",{body:{fileName:name,mimeType:mime,fileData:b64}});
+   if(error){let message=error.message||"تعذر رفع الملف إلى Google Drive.";try{const d=await error.context?.json?.();if(d?.message)message=d.message;}catch(_){}return {success:false,message};}
+   invalidateApiCache();
+   return result||{success:false,message:"لم يصل تأكيد حفظ الملف من Google Drive."};
   }
   if (["updateEmployee","deleteEmployee","deleteReport"].includes(action)) return {success:false,message:"هذا الإجراء غير مفعّل بعد في النسخة الجديدة."};
   return {success:false,message:"الإجراء غير معروف في النسخة الجديدة."};
